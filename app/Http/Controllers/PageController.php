@@ -3,119 +3,81 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\Penjualan;
+
 
 class PageController extends Controller
 {
-    public function login()
-    {
-        return view('login');
-    }
 
-    public function handleLogin(Request $request)
-    {
-        $request->validate([
-            'username' => 'required',
-            'password' => 'required'
-        ]);
-
-        if ($request->username === 'rizal' && $request->password === '123') {
-            return redirect()->route('dashboard', ['username' => $request->username]);
-        }
-
-        return back()->with('error', 'Username atau password salah');
-    }
-
-    public function dashboard(Request $request)
-    {
-        if (!$request->has('username')) {
-            return redirect()->route('login');
-        }
-
-        $username = $request->query('username');
-        
-        $vegetablePrices = [
-            'Cabai' => 100000,
-            'Tomat' => 70000,
-            'Kol' => 60000,
-            'Wortel' => 50000,
-            'Bayam' => 30000
-        ];
-        
-        $salesData = $this->getSalesData();
-        $totalIncome = array_sum(array_column($salesData, 'penghasilan'));
-        $totalSales = count($salesData);
-
-        return view('dashboard', compact('username', 'vegetablePrices', 'totalIncome', 'totalSales'));
-    }
 
     public function pengelolaan(Request $request)
     {
-        if (!$request->has('username')) {
-            return redirect()->route('login');
-        }
 
-        $salesData = $this->getSalesData();
-        return view('pengelolaan', compact('salesData'));
+
+        $penjualan = Penjualan::orderBy('tanggal', 'desc')->get();
+        return view('pengelolaan', ['salesData' => $penjualan]);
     }
 
-    public function profile(Request $request)
+    public function storePenjualan(Request $request)
     {
-        if (!$request->has('username')) {
-            return redirect()->route('login');
-        }
+        $request->validate([
+            'tanggal' => 'required|date',
+            'nama_sayur' => 'required|string',
+            'nama_pembeli' => 'required|string',
+            'kuantitas' => 'required|numeric|min:0.1',
+            'harga_jual' => 'required|numeric|min:0',
+        ]);
 
-        $username = $request->query('username');
-        return view('profile', compact('username'));
+        $penjualan = new Penjualan();
+        $penjualan->tanggal = $request->tanggal;
+        $penjualan->nama_sayur = $request->nama_sayur;
+        $penjualan->nama_pembeli = $request->nama_pembeli;
+        $penjualan->kuantitas = $request->kuantitas;
+        $penjualan->harga_jual = $request->harga_jual;
+        $penjualan->penghasilan = $request->kuantitas * $request->harga_jual;
+        $penjualan->save();
+
+        return redirect()->route('pengelolaan')->with('success', 'Data penjualan berhasil ditambahkan!');
     }
 
-    private function getSalesData()
+    public function updatePenjualan(Request $request, $id)
     {
-        return [
-            [
-                'tanggal' => '2023-05-01',
-                'nama_sayur' => 'Cabai',
-                'nama_pembeli' => 'Budi',
-                'kuantitas' => 2,
-                'harga_jual' => 100000,
-                'penghasilan' => 200000
-            ],
-            [
-                'tanggal' => '2023-05-02',
-                'nama_sayur' => 'Tomat',
-                'nama_pembeli' => 'Ani',
-                'kuantitas' => 5,
-                'harga_jual' => 70000,
-                'penghasilan' => 350000
-            ],
-            [
-                'tanggal' => '2023-05-03',
-                'nama_sayur' => 'Kol',
-                'nama_pembeli' => 'Cici',
-                'kuantitas' => 3,
-                'harga_jual' => 60000,
-                'penghasilan' => 180000
-            ],
-            [
-                'tanggal' => '2023-05-04',
-                'nama_sayur' => 'Wortel',
-                'nama_pembeli' => 'Dedi',
-                'kuantitas' => 4,
-                'harga_jual' => 50000,
-                'penghasilan' => 200000
-            ],
-            [
-                'tanggal' => '2023-05-05',
-                'nama_sayur' => 'Bayam',
-                'nama_pembeli' => 'Eva',
-                'kuantitas' => 6,
-                'harga_jual' => 30000,
-                'penghasilan' => 180000
-            ]
-        ];
+        $request->validate([
+            'tanggal' => 'required|date',
+            'nama_sayur' => 'required|string',
+            'nama_pembeli' => 'required|string',
+            'kuantitas' => 'required|numeric|min:0.1',
+            'harga_jual' => 'required|numeric|min:0',
+        ]);
+
+        $penjualan = Penjualan::findOrFail($id);
+        $penjualan->tanggal = $request->tanggal;
+        $penjualan->nama_sayur = $request->nama_sayur;
+        $penjualan->nama_pembeli = $request->nama_pembeli;
+        $penjualan->kuantitas = $request->kuantitas;
+        $penjualan->harga_jual = $request->harga_jual;
+        $penjualan->penghasilan = $request->kuantitas * $request->harga_jual;
+        $penjualan->save();
+
+        return redirect()->route('pengelolaan')->with('success', 'Data penjualan berhasil diperbarui!');
     }
 
-    public function logout(Request $request)
+    public function deletePenjualan($id)
     {
-        return redirect()->route('login')->with('success', 'Anda telah logout');
+        $penjualan = Penjualan::findOrFail($id);
+        $penjualan->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data penjualan berhasil dihapus!',
+            'deleted_id' => $id
+        ]);
     }
+
+    public function getPenjualan($id)
+    {
+        $penjualan = Penjualan::findOrFail($id);
+        return response()->json($penjualan);
+    }
+
 }
